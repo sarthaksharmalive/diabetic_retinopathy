@@ -1,0 +1,25 @@
+user - inspire@10.107.53.130
+pass - hogwarts142857
+
+Total images in our train dataset : 38064
+Total Labels for train dataset : 35126
+Need to remove images without labels = 38064-35126=2938
+
+
+Total images : 35126
+With No DR 0: 25810
+With DR 1: 2443
+With DR 2: 5292
+With DR 3: 873
+With DR 4: 708 -------------> 9316 with DR	
+
+
+20% test data for DR = 1863
+20% test data for NO_DR = 5162
+
+
+// inside dataset/train
+
+$ ls *.jpeg | wc -l  						// gives no. of images inside train dataset - 38064
+$ cat trainLabels.csv | wc -l 				// gives no. of labels available for train dataset - 35126
+$ 
