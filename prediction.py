@@ -10,6 +10,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.layers.normalization import BatchNormalization
 from keras.layers.convolutional import *
 from sklearn.metrics import confusion_matrix
+from sklearn.metrics import roc_auc_score, roc_curve, auc
 import itertools
 import matplotlib.pyplot as plt
 import os
@@ -21,7 +22,11 @@ np.random.seed(8)
 tf.set_random_seed(5)
 
 
-batch_size = 50
+conf_plot_name='Conf_bicross_resnet50_try5_withdrpt_aug.png'
+roc_plot_name='ROC_bicross_resnet50_try5_withdrpt_aug.png'
+load_model_name='bicross_resnet_model.hdf5'
+
+batch_size = 1
 
 train_path = 'train'
 valid_path = 'validation'
@@ -31,25 +36,52 @@ test_path = 'test'
 test_batches = ImageDataGenerator().flow_from_directory(test_path, target_size=(224,224), classes=['0', '4'], batch_size=batch_size)
 
 # Load model
-model = load_model('bicross_resnet50_try4_withdrpt_aug.hdf5')
+model = load_model(load_model_name)
 model.summary()
+ylab=np.array([])
+x=0
 
-test_imgs, test_labels = next(test_batches)
-ti2, te2 = next(test_batches)
-test_labels = test_labels[:,0]
-te2 = te2[:,0]
-l = list(test_labels)+list(te2)
-l = np.float32(l)
+# Takes 100 images in test folder one by one and creates their true label in ylab (y lables)
+while x<100*batch_size:
+	test_imgs, test_labels = next(test_batches)
+	test_labels = test_labels[:,0]
+	ylab=np.concatenate((ylab,test_labels), axis=0)
+	x+=1
+
+# converting true lables to numpy array
+ylab = list(ylab)
+ylab = np.float32(ylab)
 print(test_labels)
 
-predictions = model.predict_generator(test_batches, steps=2, verbose=0)
-print(predictions)
+# Predicting on test images with our model and get lables in numpy array
+predictions = model.predict_generator(test_batches, steps=100, verbose=0)
 predictions = predictions[:,0]
-print(predictions)
 predictions = np.where(predictions>0.5, 1, 0)
 predictions = np.float32(predictions)
-cm = confusion_matrix(l, predictions)
 
+
+# outputs Confusion matrix for our test samples
+cm = confusion_matrix(ylab, predictions)
+print(cm)
+
+# defining ROC function
+def plot_roc(pred,y):
+    fpr, tpr, _ = roc_curve(y, pred)
+    roc_auc = auc(fpr, tpr)
+
+    plt.figure()
+    plt.plot(fpr, tpr, label='ROC curve (area = %0.2f)' % roc_auc)
+    plt.plot([0, 1], [0, 1], 'k--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver Operating Characteristic (ROC)')
+    plt.legend(loc="lower right")
+    plt.show()
+    plt.savefig(roc_plot_name)
+
+# Defining confusion matrix function
 # Directly taken from sklearn.metrics
 def plot_confusion_matrix(cm, classes,
                           normalize=False,
@@ -83,11 +115,12 @@ def plot_confusion_matrix(cm, classes,
     plt.tight_layout()
     plt.ylabel('True label')
     plt.xlabel('Predicted label')
-    plt.savefig('conf_mat_bicross_resnet50_try4_withdrptbicross_resnet50_try4_withdrpt.png')
+    plt.savefig(conf_plot_name)
 
 
 cm_plot_labels = ['cat_0','cat_4']
-plot_confusion_matrix(cm, cm_plot_labels, title='Confusion Matrix')
 
-# from keras.utils import plot_model
-# plot_model(model, to_file='model.png', show_shapes=True)
+# Plots confusion matrix
+plot_confusion_matrix(cm, cm_plot_labels, title='Confusion Matrix')
+# Plots ROC
+plot_roc(ylab,predictions)
